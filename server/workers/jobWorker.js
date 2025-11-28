@@ -98,7 +98,13 @@ const worker = new Worker(QUEUE_NAME, async (bullJob) => {
     const identifier = (jobData?.externalId || jobData?.url || jobData?.title) ?? 'unknown';
     await ImportLog.findByIdAndUpdate(importLogId, {
       $inc: { failedJobsCount: 1 },
-      $push: { failedJobs: { identifier: String(identifier), reason: err.message } }
+      $push: { 
+        failedJobs: { 
+          identifier: String(identifier),
+          reason: err.message,
+          raw: jobData // so requeue works
+        }
+      }
     });
     throw err;
   }

@@ -7,11 +7,13 @@ const importLogsRouter = require('./routes/importLogs');
 const { fetchFeed } = require('./services/xmlService');
 const { queue } = require('./queues/jobQueue');
 const ImportLog = require('./models/ImportLog');
+const jobsRouter = require('./routes/jobs');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 app.use('/import-logs', importLogsRouter);
+app.use('/jobs', jobsRouter);
 
 const PORT = process.env.PORT || 4000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/knovator_jobs';
