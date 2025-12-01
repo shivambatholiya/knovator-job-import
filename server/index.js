@@ -71,9 +71,36 @@ app.post('/import-now', async (req, res) => {
 
 // connect to mongo and start server
 mongoose.connect(MONGO_URI)
-  .then(() => {
+  .then(async () => {
     console.log('Mongo connected');
-    app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+    const serverInstance = app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+
+    // Conditionally start inline worker
+    if (process.env.START_INLINE_WORKER === "true") {
+      try {
+        // require here to avoid loading worker if not needed
+        const { startWorker } = require('./workers/jobWorker');
+        const { close } = await startWorker();
+        console.log('Inline worker started (START_INLINE_WORKER=true)');
+
+        // ensure graceful shutdown closes both server and worker
+        const shutdown = async () => {
+          console.log('Shutting down server + inline worker...');
+          try { await close(); } catch(e) { console.error('Error closing worker', e); }
+          serverInstance.close(() => {
+            mongoose.disconnect().then(()=>process.exit(0)).catch(()=>process.exit(0));
+          });
+        };
+        process.on('SIGTERM', shutdown);
+        process.on('SIGINT', shutdown);
+      } catch (err) {
+        console.error('Failed to start inline worker:', err);
+        // do not crash the web server — worker is optional
+      }
+    } else {
+      console.log('Inline worker disabled (START_INLINE_WORKER not set to "true")');
+    }
+
   })
   .catch(err => {
     console.error('Mongo connection error', err);
