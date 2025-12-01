@@ -1,5 +1,10 @@
 // server/index.js
 require('dotenv').config();
+
+console.log('DEBUG ENV: REDIS_URL=', process.env.REDIS_URL ? '[SET]' : '[NOT SET]', process.env.REDIS_URL ? process.env.REDIS_URL.replace(/:.*@/, ':*****@') : '');
+
+
+
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -14,6 +19,21 @@ app.use(express.json());
 app.use(cors());
 app.use('/import-logs', importLogsRouter);
 app.use('/jobs', jobsRouter);
+
+// quick test route — paste into server/index.js
+app.post('/enqueue-test', async (req, res) => {
+  try {
+    console.log('ENQUEUE-TEST: request received');
+    const importLog = await ImportLog.create({ feedUrl: 'enqueue-test', notes: 'manual test' });
+    await queue.add('process-job', { jobData: { title: 'test-job', url: 'http://example.test' }, importLogId: importLog._id.toString() }, { removeOnComplete: true });
+    console.log('ENQUEUE-TEST: job added to queue, importLogId=', importLog._id.toString());
+    return res.json({ ok: true, importLogId: importLog._id });
+  } catch (err) {
+    console.error('ENQUEUE-TEST error', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 
 const PORT = process.env.PORT || 4000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/knovator_jobs';
